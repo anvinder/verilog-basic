@@ -1,0 +1,61 @@
+module comparator_top(ld, sw);
+output [2:0]ld;
+input [3:0]sw;
+comparator com(.a(sw[3:2]), .b(sw[1:0]), .aeqb(ld[2]), .altb(ld[0]), .agtb(ld[1]));
+endmodule
+
+module comparator (a,b,aeqb, agtb, altb);
+input [1:0] a;
+input [1:0] b;
+output logic aeqb, agtb, altb;
+assign aeqb = a[1]& b[1] & a[0] & b[0] | ~a[1]& ~b[1] & ~a[0] & ~b[0] | ~a[1]& ~b[1] & a[0] & b[0] | a[1]& b[1] & ~a[0] & ~b[0];
+assign agtb = a[1]& ~b[1] | ~b[1] & a[0] & ~b[0] | a[1]& & a[0] & ~b[0];
+assign altb = ~a[1]& b[1] | b[1] & ~a[0] & b[0] | ~a[1]& ~a[0] & b[0];
+
+endmodule
+
+
+module dut();
+logic [2:0]ld;
+logic [3:0] sw;
+comparator_top dut (.ld(ld), .sw(sw) );
+
+
+initial begin 
+
+sw=4'h0;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h1;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);sw=4'h2;
+sw=4'h2;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h3;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h4;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h5;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h6;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h7;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h8;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h9;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+sw=4'h10;
+#10;
+$display("a=%h, b=%h, agtb=%h, aeqb=%h, altb=%h", sw[3:2],sw[1:0],ld[1],ld[2],ld[0]);
+
+end
+endmodule
