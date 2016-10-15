@@ -1,0 +1,88 @@
+
+module dff(clk,d,q, reset);
+input clk, d, reset;
+output logic q;
+assign qbar=~q;
+
+always @( posedge clk or posedge reset)
+begin
+if (reset)
+begin
+q<=0;
+end
+else 
+begin
+q<=d;
+end
+end
+endmodule
+
+
+module siso(data_in, clk, reset, data_out);
+logic w1, w2, w3,w4,w5,w6;
+input data_in, clk, reset;
+output logic data_out;
+dff d1(.d(data_in), .q(w1), .clk(clk), .reset(reset));
+dff d2(.d(w1), .q(w2), .clk(clk), .reset(reset));
+dff d3(.d(w2), .q(w3), .clk(clk), .reset(reset));
+dff d4(.d(w3), .q(w4), .clk(clk), .reset(reset));
+dff d5(.d(w4), .q(w5), .clk(clk), .reset(reset));
+dff d6(.d(w5), .q(w6), .clk(clk), .reset(reset));
+dff d7(.d(w6), .q(data_out), .clk(clk), .reset(reset));
+
+endmodule
+
+module dut();
+logic clk, data_in,data_out,reset;
+siso s(.clk(clk), .data_in(data_in), .reset(reset), .data_out(data_out));
+
+always #20 clk=~clk;
+
+initial begin
+data_in=0;
+clk=0;
+reset=0;
+//$monitor ("data_in=%b, data_out=%b", data_in,data_out);
+
+@(posedge clk)
+reset=1;
+
+reset=0;
+data_in=1;
+
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+@(posedge clk)
+
+data_in=0;
+
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+@(posedge clk)
+
+data_in=1;
+
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+@(posedge clk)
+
+data_in=0;
+@(posedge clk)
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+
+
+data_in=1;
+@(posedge clk)
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+
+
+data_in=0;
+
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+@(posedge clk)
+
+data_in=1;
+
+$monitor ("data_in=%b, data_out=%b", data_in, data_out);
+@(posedge clk)
+
+$finish;
+end
+endmodule
