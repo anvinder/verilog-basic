@@ -1,0 +1,268 @@
+module bist_controller #(
+                          parameter DWIDTH = 32,
+                                    AWIDTH = 4 
+                        )
+                    (
+                     input clk,
+                     input rst,
+                     input Test, 
+
+                     input we,
+                     input [AWIDTH-1:0] wraddr,
+                     input [DWIDTH-1:0] datain,
+
+                     input re,
+                     input [AWIDTH-1:0] rdaddr,
+                     output reg bist_status,
+                     output reg bist_check_valid
+                    );
+
+reg [AWIDTH-1:0] wraddr_mux;
+reg [AWIDTH-1:0] rdaddr_mux;
+reg [DWIDTH-1:0] datain_mux;
+reg [DWIDTH-1:0] data_gen;
+reg [AWIDTH-1:0] wraddr_gen;
+reg [AWIDTH-1:0] rdaddr_gen;
+reg bist_control;
+reg we_gen,re_gen;
+reg we_mux,re_mux;
+reg [3:0] state;
+reg check;
+wire [DWIDTH-1:0] dataout_mem;
+
+localparam IDLE = 'd0,
+           BIST_MODE_WRITE = 'd1,
+           PATTERN_CHECK_ST1 = 'd2,
+           PATTERN_CHECK = 'd3;
+
+localparam DEPTH = 2**AWIDTH;           
+
+always @ (posedge clk) 
+begin
+  if(rst)
+  begin
+    state <= IDLE;
+    bist_control <= 0;
+    wraddr_gen <= 0;
+    data_gen <= 0;
+    we_gen <= 0;
+    check <= 0;
+   end
+  else
+   begin
+    case(state)
+      IDLE : 
+      begin
+       $display("State = IDLE");
+        if(Test)
+          begin
+            state <= BIST_MODE_WRITE;
+            bist_control <= 1;
+            data_gen <= 1;
+          end
+        else
+         begin
+          state <= IDLE;
+          bist_control <= 0;
+         end
+      end
+      BIST_MODE_WRITE :
+      begin
+       we_gen <= 1;
+       wraddr_gen <= wraddr_gen + 1; 
+       data_gen <=  {DWIDTH{1'b1}};
+       $display("state = BIST_MODE_WRITE");
+       if(wraddr_gen == DEPTH-1)
+       begin
+        state <= PATTERN_CHECK_ST1;
+       end
+       $display("wraddr_gen=%x,data_gen=%x",wraddr_gen,data_gen);
+      end
+      PATTERN_CHECK_ST1 :
+      begin
+        we_gen <= 0;
+        wraddr_gen <= 0;
+        rdaddr_gen <= 0;
+        re_gen <= 1;
+        state <= PATTERN_CHECK;
+        $display("rdaddr_gen=%x",rdaddr_gen);
+      end
+      PATTERN_CHECK :
+      begin
+       check <= 1;
+       rdaddr_gen <= rdaddr_gen + 1;
+        $display("rdaddr_gen=%x",rdaddr_gen);
+       if(rdaddr_gen == DEPTH-1)
+        state <= IDLE;
+      end
+   endcase
+  end
+end
+
+always @ *
+begin
+ if(bist_control)
+ begin
+  datain_mux = data_gen;
+  wraddr_mux = wraddr_gen;
+  re_mux = re_gen;
+  rdaddr_mux = rdaddr_gen;
+  we_mux = we_gen;
+ end
+ else
+ begin
+  datain_mux = datain;
+  wraddr_mux = wraddr;
+  re_mux = re;
+  rdaddr_mux = rdaddr;
+  we_mux = we;
+ end
+end
+
+
+always @ (posedge clk) 
+begin
+ if(rst)
+ begin
+  bist_status <= 0;
+  bist_check_valid <= 0;
+ end
+ else
+ begin
+ if(check)
+ begin
+  if(~&dataout_mem)
+   bist_status <= 1;
+ end
+  $display("bist_status=%b",bist_status);
+  $display("dataout_mem=%x",dataout_mem);
+  bist_check_valid = check;
+ end
+end
+
+
+memory_model #(
+               .DWIDTH(DWIDTH),
+               .AWIDTH(AWIDTH)
+              )
+     u_mem_model (
+                 .clk(clk),
+                 .rst(rst),
+                 .we(we_mux),
+                 .wraddr(wraddr_mux),
+                 .datain(datain_mux),
+                 .re(re_mux),
+                 .rdaddr(rdaddr_mux),
+                 .dataout(dataout_mem)
+               );
+
+
+endmodule                    
+
+
+module memory_model #(
+                      parameter DWIDTH = 32,
+                                AWIDTH = 10
+                     )
+                    (
+                     // Clock and Reset
+                     input clk,
+                     input rst,
+                  
+                     // Write Interface
+                     input we,
+                     input [AWIDTH-1:0] wraddr,
+                     input [DWIDTH-1:0] datain,
+
+                     // Read Interface
+                     input re,
+                     input [AWIDTH-1:0] rdaddr,
+                     output reg [DWIDTH-1:0] dataout
+                    );
+
+localparam DEPTH = 2**AWIDTH;
+reg [DWIDTH-1:0] mem [DEPTH-1:0];
+
+integer i;
+
+always @ (posedge clk)
+begin
+ if(rst)
+  begin
+    for(i=0;i<DEPTH-1;i=i+1)
+      mem[wraddr] <= 0;
+  end
+ else
+  begin
+    if(we)
+      mem[wraddr] <= datain;
+  end
+end
+
+always @ (posedge clk)
+begin
+ if(re)
+  dataout <= mem[rdaddr];
+end
+
+endmodule                    
+
+
+`timescale 1ns/1ns;
+module tb;
+parameter DWIDTH = 32;
+parameter AWIDTH = 4;
+
+reg clk;
+reg Test;
+reg rst;
+
+reg [AWIDTH-1:0] wraddr,rdaddr;
+reg we,re;
+reg [DWIDTH-1:0] datain;
+
+initial
+begin
+clk = 0;
+forever
+#100 clk = ~clk;
+end
+
+bist_controller u (
+                   .clk(clk),
+                   .rst(rst),
+                   .Test(Test),
+                   .we(we),
+                   .wraddr(wraddr),
+                   .datain(datain),
+                   .re(re),
+                   .rdaddr(rdaddr),
+                   .bist_status(bist_status),
+                   .bist_check_valid(bist_check_valid)
+                  );
+
+initial
+begin
+ Test = 0;
+ rst = 1;
+ #250;
+ Test = 1;
+ rst = 0;
+ #(100*100);
+ force u.u_mem_model.mem[3] = 0;
+ #(100*100);
+ $finish;
+end
+
+always @ (posedge clk)
+begin
+ if(bist_check_valid)
+ begin
+   if(bist_status == 0)
+    $display("BIST PASSED");
+   else
+    $display("BIST FAILED");
+ end
+end
+
+endmodule
