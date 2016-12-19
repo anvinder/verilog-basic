@@ -1,0 +1,1011 @@
+module vga_top_module(clk_main, reset, switch0, switch1, switch2, red_0, green_0, blue_0, hsync_0, vsync_0);
+input clk_main, reset;
+output  logic red_0, blue_0, green_0;
+input switch0, switch1, switch2;
+output logic hsync_0, vsync_0;
+ 
+logic [10:0] hcount;
+logic [9:0] vcount;
+
+rgb1 vga_interface(.clk(clk), .reset(reset), .switch ({switch2, switch1, switch0}), .red(red_0), .green(green), .blue(blue), .hsync(hsync_0), .vsync(vsync_0), .hcount1(hcount), .vcount1(vcount));
+endmodule
+
+module rgb1 (clk, reset, switch, red, green, blue, hsync, vsync,hcount1, vcount1);
+input clk, reset;
+output logic [2:0] switch;
+output logic blue, red, green;
+output logic hsync, vsync;
+output logic [10:0] hcount1;
+output logic [9:0] vcount1;
+// fp_h- front porch horizontal bp_- back porch vertical
+logic sync_h, sync_v, fp_h, fp_v, bp_h, bp_v, clk11, q;
+logic [2:0] pr_state, nx_state;
+parameter black_state = 3'b000;
+parameter blue_state = 3'b001;
+parameter green_state = 3'b010;
+parameter cyan_state = 3'b011;
+parameter red_state = 3'b100;
+parameter magenta_state = 3'b101;
+parameter yellow_state = 3'b110;
+parameter white_state = 3'b111;
+logic [10:0] hcount ;
+logic [9:0] vcount ;
+
+always @(posedge clk or posedge reset)
+begin 
+if (reset)
+begin 
+hcount1<=0;
+vcount1<=0;
+end
+else 
+begin 
+hcount1<=hcount;
+vcount1<=vcount;
+end
+end
+
+
+always @(posedge clk or posedge reset)
+begin
+if (reset)
+begin
+clk11<=0;
+q<=0;
+end
+else 
+begin
+q<=~clk11;
+clk11=~clk11;
+end
+end
+
+//hcounter
+always @(posedge q or posedge reset)
+begin
+	
+	if (reset)
+	begin
+	hcount<=0;
+	vcount<=0;
+	end
+		else 
+		begin
+			if (hcount==799)
+			begin
+			hcount<=0;
+				if (vcount ==520)
+					begin
+					vcount<=0;
+					end
+				else 
+					begin
+					vcount<=vcount+1;
+					end
+			end
+			else 
+			begin
+	 		hcount<=hcount+1;
+			end
+		end
+//end
+
+
+//sync
+//always @(*)
+if (reset)
+begin
+sync_h<=0;
+sync_v<=0;
+end
+else 
+begin
+
+	if (hcount<=751 && hcount>=656)
+	begin
+	sync_h<=0;	
+	end
+	else
+	begin
+	sync_h<=1;
+	end
+	if (vcount<=491 && vcount>=490)
+	begin
+	sync_v<=0;	
+	end
+	else
+	begin
+	sync_v<=1;
+	hsync<= sync_h;
+	vsync<= sync_v;
+	end
+end
+/////////front porch 
+if (reset)
+begin
+fp_h<=0;
+fp_v<=0;
+end
+else 
+begin
+if (hcount<=655 && hcount>=640)
+fp_h<=1;
+else 
+fp_h<=0;
+if (vcount<=489 && vcount>=480 )
+fp_v<=1;
+else 
+fp_v<=0;
+end
+
+
+if (reset)
+begin
+bp_h<=0;
+bp_v<=0;
+end
+else 
+begin
+if (hcount<=799 && hcount>=752)
+bp_h<=1;
+else 
+bp_h<=0;
+if (vcount<=520 && vcount>=492 )
+bp_v<=1;
+else 
+bp_v<=0;
+end
+
+
+end// this end is from the first if and is continuing so far. 
+
+always @(posedge q or posedge reset)
+begin
+if (reset==1)
+begin
+red<=0;
+green<=0;
+blue<=0;
+nx_state<=0;
+end
+
+else 
+if (sync_h==0)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+if (sync_v==0)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+if (fp_h==1)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+if (fp_v==1)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+if (bp_h==1)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+if (bp_v==1)
+begin
+red<=0;
+green<=0;
+blue<=0;
+end
+
+else 
+
+begin
+case (switch)
+3'b000:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= blue_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+endcase
+	
+	
+3'b001:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= cyan_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+3'b010:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+3'b011:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+3'b100:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+
+
+3'b101:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+
+3'b110:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+
+3'b111:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+
+
+
+
+default:
+	case (pr_state)
+	black_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==79)
+		nx_state= red_state;
+		end
+	
+	blue_state :
+		begin
+		red<=0; 
+		green<=0;
+		blue<=1;
+		if (hcount==159)
+		nx_state= green_state;
+		end
+
+
+	green_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=0;
+		if (hcount==239)
+		nx_state= cyan_state;
+		end
+	cyan_state :
+		begin
+		red<=0; 
+		green<=1;
+		blue<=1;
+		if (hcount==319)
+		nx_state= red_state;
+		end
+	red_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=0;
+		if (hcount==399)
+		nx_state= magenta_state;
+		end
+	magenta_state :
+		begin
+		red<=1; 
+		green<=0;
+		blue<=1;
+		if (hcount==479)
+		nx_state= yellow_state;
+		end
+	yellow_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=0;
+		if (hcount==559)
+		nx_state= white_state;
+		end
+	white_state :
+		begin
+		red<=1; 
+		green<=1;
+		blue<=1;
+		if (hcount==559)
+		nx_state= black_state;
+		end
+	default :
+		begin
+		red<=0;
+		green<=0;
+		blue<=0;
+		end
+	endcase
+endcase
+end
+end  // for always block
+
+
+always @(posedge clk or posedge reset)
+begin
+if (reset)
+begin
+pr_state<=0;
+end
+else 
+begin
+pr_state<=nx_state;
+end
+end
+
+endmodule
+
+
+
+
+module vga_tb();
+
+logic clk_main, reset, switch0, switch1, switch2;
+logic red_0, green_0, blue_0, hsync_0, vsync_0;
+logic [10:0] hcount;
+
+rgb1 vga_interface(.clk(clk), .reset(reset), .switch ({switch2, switch1, switch0}), .red(red_0), .green(green), .blue(blue), .hsync(hsync_0), .vsync(vsync_0), .hcount1(hcount), .vcount1(vcount));
+
+always #20 clk_main= ~ clk_main;
+
+initial begin
+clk_main =0;
+switch0=0;
+switch1=0;
+switch2=0;
+reset=0;
+
+
+@(posedge clk)
+@(posedge clk)
+clk_main =0;
+switch0=0;
+switch1=0;
+switch2=0;
+reset=1;
+
+
+@(posedge clk)
+@(posedge clk)
+clk_main =0;
+switch0=1;
+switch1=0;
+switch2=0;
+reset=0;
+
+
+@(posedge clk)
+@(posedge clk)
+clk_main =0;
+switch0=0;
+switch1=1;
+switch2=0;
+reset=0;
+
+
+@(posedge clk)
+@(posedge clk)
+clk_main =0;
+switch0=0;
+switch1=0;
+switch2=1;
+reset=0;
+
+end
+endmodule
